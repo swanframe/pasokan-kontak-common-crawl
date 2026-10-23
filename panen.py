@@ -99,6 +99,30 @@ def month_label(month):
     return f"{MONTHS_ID[int(mon) - 1]} {year}"
 
 
+def last_month():
+    """Bulan terbaru yang dipakai: bulan lalu, dihitung dari tanggal laptop.
+    Arsip bulan berjalan tidak dipakai walau sudah terbit, supaya aturannya
+    tidak bergantung pada kapan arsip itu muncul (README, Memilih Bulan)."""
+    now = time.localtime()
+    year, mon = (now.tm_year, now.tm_mon - 1) if now.tm_mon > 1 else (now.tm_year - 1, 12)
+    return f"{year}-{mon:02d}"
+
+
+def months_before(month, reference):
+    """Berapa bulan `month` lebih tua dari `reference`; negatif bila lebih baru."""
+    return ((int(reference[:4]) - int(month[:4])) * 12
+            + int(reference[5:]) - int(month[5:]))
+
+
+def month_note(month):
+    age = months_before(month, last_month())
+    if age < 0:
+        return "bulan berjalan, belum dipakai"
+    if age >= MAX_AGE_MONTHS:
+        return "lebih dari 12 bulan"
+    return ""
+
+
 def company_domain(surt_key):
     """'id,co,akr,www)/x' -> 'akr.co.id'; None bila bukan domain perusahaan."""
     host = surt_key.split(")", 1)[0].split(",")
@@ -181,11 +205,11 @@ def harvest(month):
     if not crawl:
         print(f"Arsip bulan {month} tidak ada. Lihat daftar dengan: python panen.py --daftar")
         return
-    newest = months[0][0]
-    age = (int(newest[:4]) - int(month[:4])) * 12 + int(newest[5:]) - int(month[5:])
-    if age >= MAX_AGE_MONTHS:
-        print(f"Peringatan: arsip ini {age} bulan lebih tua dari yang terbaru ({newest}). "
-              f"Email lama lebih berisiko sudah mati; lihat README bagian Memilih Bulan.\n")
+    note = month_note(month)
+    if note:
+        print(f"Peringatan: {month_label(month)} {note}. Yang dipakai paling baru bulan lalu "
+              f"({month_label(last_month())}), paling jauh 12 bulan ke belakang. "
+              f"Lihat README bagian Memilih Bulan.\n")
 
     RESULTS.mkdir(exist_ok=True)
     CACHE.mkdir(exist_ok=True)
@@ -279,8 +303,9 @@ def harvest(month):
 def list_months():
     months = available_months()
     print("Bulan arsip yang tersedia, terbaru di atas:")
-    for i, (month, crawl) in enumerate(months[:24]):
-        note = "" if i < MAX_AGE_MONTHS else "   (lebih dari 12 bulan)"
+    for month, crawl in months[:24]:
+        note = month_note(month)
+        note = f"   ({note})" if note else ""
         done = "   [sudah ada di hasil/]" if (RESULTS / f"{month}.csv").exists() else ""
         print(f"  {month}   {month_label(month):<16} {crawl}{note}{done}")
 

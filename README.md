@@ -40,20 +40,26 @@ python panen.py --daftar
 
 Patokannya, urut dari yang paling penting:
 
-1. **Terbaru dulu.** Makin baru arsipnya, makin besar kemungkinan emailnya masih
-   aktif. Email mati menjadi bounce, dan bounce yang banyak merusak reputasi
-   domain pengirim.
-2. **Paling jauh 12 bulan ke belakang.** Arsip yang lebih tua tetap bisa
+1. **Mulai dari bulan lalu.** Di bulan Oktober, yang dipakai arsip September;
+   di bulan November, arsip Oktober. Arsip bulan berjalan tidak dipakai walau
+   sudah terbit, supaya aturannya tidak bergantung pada kapan arsip itu muncul.
+2. **Terbaru dulu, mundur dari bulan lalu.** Makin baru arsipnya, makin besar
+   kemungkinan emailnya masih aktif. Email mati menjadi bounce, dan bounce yang
+   banyak merusak reputasi domain pengirim.
+3. **Paling jauh 12 bulan ke belakang.** Arsip yang lebih tua tetap bisa
    dipanen, tetapi skrip akan memberi peringatan. Angka 12 bulan ini patokan
    awal, bukan hasil ukur.
-3. **Gabungkan dulu sebelum menambah bulan.** Bulan yang berdekatan kemungkinan
+4. **Gabungkan dulu sebelum menambah bulan.** Bulan yang berdekatan kemungkinan
    banyak memuat situs yang sama. Bila `--gabung` menunjukkan bulan kedua hanya
    menyumbang sedikit email baru, bulan berikutnya sebaiknya diambil yang lebih
    jauh, bukan yang bersebelahan.
 
-Contoh: September menghasilkan 20 ribu email. Agustus juga 20 ribu, tetapi 16
-ribu di antaranya sudah ada di September, jadi Agustus hanya menambah 4 ribu.
-Bulan ketiga sebaiknya Maret, bukan Juli.
+Contoh di bulan Oktober: September menghasilkan 20 ribu email. Agustus juga 20
+ribu, tetapi 16 ribu di antaranya sudah ada di September, jadi Agustus hanya
+menambah 4 ribu. Bulan ketiga sebaiknya Maret, bukan Juli.
+
+`--daftar` menandai bulan berjalan dan bulan yang lebih dari 12 bulan, jadi
+aturan di atas tidak perlu dihitung sendiri.
 
 ## Membagi kerja
 
