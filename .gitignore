@@ -1,0 +1,7 @@
+# Berisi alamat email, termasuk alamat pribadi. Bagikan lewat Drive privat.
+hasil/
+
+# Peta indeks arsip dan catatan progres per laptop. Bisa dibuat ulang.
+cache/
+
+__pycache__/
