@@ -23,6 +23,7 @@ import json
 import random
 import re
 import sys
+import threading
 import time
 import urllib.request
 from collections import Counter
@@ -73,7 +74,7 @@ class ConnectionLost(Exception):
     """Terlalu banyak yang gagal sekaligus: kemungkinan internet putus."""
 
 
-def http_get(url, byte_range=None):
+def http_get(url, byte_range=None, max_secs=120):
     global retry_count
     headers = {"User-Agent": "pasokan-kontak-common-crawl"}
     if byte_range:
@@ -81,8 +82,17 @@ def http_get(url, byte_range=None):
     for attempt in range(HTTP_TRIES):
         try:
             req = urllib.request.Request(url, headers=headers)
-            with urllib.request.urlopen(req, timeout=60) as resp:
-                return resp.read()
+            # timeout urlopen hanya berlaku bila server diam total; server yang
+            # mengirim sedikit demi sedikit bisa menggantung tanpa batas. Batas
+            # total ini yang membuat unduhan seperti itu gagal lalu diulang.
+            deadline = time.monotonic() + max_secs
+            chunks = []
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                while chunk := resp.read(65536):
+                    if time.monotonic() > deadline:
+                        raise TimeoutError(f"unduhan lebih dari {max_secs} dtk")
+                    chunks.append(chunk)
+            return b"".join(chunks)
         except (OSError, http.client.HTTPException):
             if attempt == HTTP_TRIES - 1:
                 raise
@@ -166,7 +176,7 @@ def load_blocks(crawl):
     if not cluster.exists():
         print("Mengunduh peta indeks arsip ini (sekitar 105 MB, sekali saja)...", flush=True)
         tmp = cluster.with_suffix(".tmp")
-        tmp.write_bytes(http_get(f"{index_url}/cluster.idx"))
+        tmp.write_bytes(http_get(f"{index_url}/cluster.idx", max_secs=1800))
         tmp.replace(cluster)
     blocks = []
     with cluster.open(encoding="utf-8") as f:
@@ -279,6 +289,19 @@ def harvest(month):
 
     next_report = started + REPORT_EVERY
     stop_reason = None
+    last_block_done = [time.time()]
+    finished = threading.Event()
+
+    def heartbeat():
+        # Baris progres hanya tercetak saat blok selesai. Tanpa ini, server yang
+        # sangat lambat tidak bisa dibedakan dari skrip yang macet.
+        while not finished.wait(REPORT_EVERY):
+            idle = time.time() - last_block_done[0]
+            if idle >= REPORT_EVERY:
+                print(f"{time.strftime('[%H:%M]')} masih menunggu server: blok terakhir selesai "
+                      f"{idle / 60:.0f} menit lalu | diulang {retry_count}", flush=True)
+
+    threading.Thread(target=heartbeat, daemon=True).start()
     with out_file.open("a", newline="", encoding="utf-8") as f, ThreadPoolExecutor(WORKERS) as pool:
         w = csv.writer(f)
         if f.tell() == 0:
@@ -307,6 +330,7 @@ def harvest(month):
                 f.flush()
                 progress_file.write_text(str(i + 1))
                 blocks_this_run += 1
+                last_block_done[0] = time.time()
                 if time.time() >= next_report:
                     report(time.strftime("[%H:%M]"))
                     next_report += REPORT_EVERY
@@ -315,6 +339,7 @@ def harvest(month):
         except ConnectionLost as exc:
             stop_reason = (f"Berhenti karena koneksi bermasalah ({exc}). Periksa internet, "
                            f"lalu jalankan perintah yang sama untuk melanjutkan.")
+    finished.set()
 
     print()
     report("=== RINGKASAN ===\n ")
