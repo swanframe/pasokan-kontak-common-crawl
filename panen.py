@@ -50,7 +50,11 @@ MONTHS_ID = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli",
 NON_COMPANY = {"ac", "go", "sch", "or", "mil", "desa", "ponpes", "net", "web", "my"}
 # Harus di awal segmen path: "/tentang-kami" ya, "/artikel-semua-tentang-x" tidak.
 CONTACT_PATH = re.compile(r"/(contact|kontak|hubungi|about|tentang)", re.I)
-EMAIL = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
+# Panjang tiap bagian dibatasi sesuai batas alamat email (64 sebelum @). Tanpa
+# batas, deret karakter panjang tanpa @ (gambar yang ditanam di halaman,
+# megabagus.id: 2,6 juta karakter) membuat pencarian mencoba tiap posisi sampai
+# ujung deret, dan panen menggantung berjam-jam di satu halaman.
+EMAIL = re.compile(r"[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9.-]{1,253}\.[A-Za-z]{2,24}")
 NOT_EMAIL_TLD = {"png", "jpg", "jpeg", "gif", "svg", "webp", "css", "js", "ico"}
 FREE_MAIL = {
     "gmail.com", "yahoo.com", "yahoo.co.id", "hotmail.com", "outlook.com",
