@@ -83,6 +83,15 @@ Hasilnya `hasil/gabungan.csv`, bisa dibuka di Excel. Email ganda sudah dibuang.
 Di layar tercetak berapa email **baru** yang disumbang tiap bulan, yaitu angka
 yang dipakai untuk memilih bulan berikutnya.
 
+Dua kolom membantu memilah situs perusahaan dari yang bukan:
+
+- `jenis_domain`: `co.id` hanya boleh didaftarkan badan usaha berbadan hukum,
+  jadi paling bisa dipegang. `biz.id` untuk usaha, tetapi syaratnya longgar.
+  `id` biasa boleh milik siapa saja: perusahaan, blog, portal berita.
+- `sebut_badan_usaha`: `ya` bila ada halaman situs itu yang menyebut PT, CV,
+  Tbk, atau Persero. Ini penanda, bukan bukti: portal berita juga sering
+  menyebut PT penerbitnya. Paling berguna untuk memilah situs `id` biasa.
+
 Kolom `alamat_di_situs_ini` menunjukkan berapa alamat yang ditemukan di situs
 yang sama. Situs dengan puluhan atau ratusan alamat biasanya halaman peserta
 lomba atau daftar pelanggan, bukan alamat perusahaan itu sendiri. Saring sebelum

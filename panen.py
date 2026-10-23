@@ -58,7 +58,12 @@ JUNK_DOMAINS = (
     "example.com", "domain.com", "email.com", "yourdomain.com", "mysite.com",
     "sentry.io", "wixpress.com", "sentry-next.wixpress.com",
 )
-FIELDS = ["email", "domain_situs", "halaman", "url", "jenis"]
+# Penanda badan usaha di isi halaman. Huruf besar disengaja: "PT Maju Jaya" ya,
+# kata "pt" di tengah kalimat tidak. Membantu memilah situs .id biasa, yang
+# bisa milik siapa saja, dari situs perusahaan.
+ENTITY = re.compile(r"\b(?:PT|CV)(?:\.\s*|\s+)[A-Z]|\bTbk\b|\(Persero\)")
+FIELDS = ["email", "domain_situs", "jenis_domain", "halaman", "url", "jenis",
+          "sebut_badan_usaha"]
 
 retry_count = 0
 
@@ -135,6 +140,16 @@ def company_domain(surt_key):
     return f"{host[1]}.id"
 
 
+def domain_category(domain):
+    """co.id hanya untuk badan usaha berbadan hukum; biz.id usaha dengan syarat
+    longgar; id biasa boleh milik siapa saja."""
+    if domain.endswith(".co.id"):
+        return "co.id"
+    if domain.endswith(".biz.id"):
+        return "biz.id"
+    return "id"
+
+
 def page_kind(surt_key):
     path = surt_key.split(")", 1)[1] if ")" in surt_key else ""
     if path in ("", "/"):
@@ -192,7 +207,7 @@ def emails_from_page(rec):
         if domain.rsplit(".", 1)[-1] in NOT_EMAIL_TLD or domain.endswith(JUNK_DOMAINS):
             continue
         found.add(email)
-    return found
+    return found, bool(ENTITY.search(text))
 
 
 def jenis(email):
@@ -254,7 +269,7 @@ def harvest(month):
         try:
             return item, emails_from_page(item[2]), None
         except Exception as exc:
-            return item, set(), exc
+            return item, (set(), False), exc
 
     next_report = started + REPORT_EVERY
     stop_reason = None
@@ -278,10 +293,11 @@ def harvest(month):
                     raise ConnectionLost(f"{errors} dari {len(pages)} halaman gagal")
                 failed += errors
                 seen_domains.update(d for d, _, _ in pages)
-                for (domain, kind, rec), found, _ in results:
+                for (domain, kind, rec), (found, entity), _ in results:
                     for email in sorted(found - emails):
                         emails.add(email)
-                        w.writerow([email, domain, kind, rec["url"], jenis(email)])
+                        w.writerow([email, domain, domain_category(domain), kind, rec["url"],
+                                    jenis(email), "ya" if entity else "tidak"])
                 f.flush()
                 progress_file.write_text(str(i + 1))
                 blocks_this_run += 1
@@ -315,7 +331,9 @@ def merge():
     if not files:
         print("Belum ada hasil/<bulan>.csv. Kumpulkan dulu hasil semua orang ke folder hasil/.")
         return
-    first_seen, per_site = {}, Counter()
+    # Ditandai per situs, bukan per halaman: cukup satu halaman situs itu yang
+    # menyebut badan usaha.
+    first_seen, per_site, entity_sites = {}, Counter(), set()
     print("Email baru yang disumbang tiap bulan (bulan terbaru dihitung lebih dulu):")
     for path in files:
         month = path.stem
@@ -323,6 +341,8 @@ def merge():
         with path.open(encoding="utf-8", newline="") as f:
             for row in csv.DictReader(f):
                 total += 1
+                if row.get("sebut_badan_usaha") == "ya":
+                    entity_sites.add(row["domain_situs"])
                 if row["email"] not in first_seen:
                     first_seen[row["email"]] = (row["domain_situs"], row["jenis"], month)
                     per_site[row["domain_situs"]] += 1
@@ -334,13 +354,21 @@ def merge():
     # utf-8-sig supaya Excel membaca hurufnya dengan benar.
     with out_file.open("w", newline="", encoding="utf-8-sig") as f:
         w = csv.writer(f)
-        w.writerow(["email", "domain_situs", "jenis", "bulan", "alamat_di_situs_ini"])
+        w.writerow(["email", "domain_situs", "jenis_domain", "jenis", "sebut_badan_usaha",
+                    "bulan", "alamat_di_situs_ini"])
         for email, (domain, kind, month) in sorted(first_seen.items()):
-            w.writerow([email, domain, kind, month, per_site[domain]])
+            w.writerow([email, domain, domain_category(domain), kind,
+                        "ya" if domain in entity_sites else "tidak", month, per_site[domain]])
     free = sum(1 for _, kind, _ in first_seen.values() if kind == "gratis")
     crowded = sum(1 for n in per_site.values() if n > 20)
     print(f"\nTotal email unik: {len(first_seen):,} dari {len(per_site):,} situs, "
           f"Gmail {free / max(len(first_seen), 1):.0%}.")
+    print("Menurut jenis domain:")
+    for category in ("co.id", "biz.id", "id"):
+        domains = [d for d, _, _ in first_seen.values() if domain_category(d) == category]
+        entity = sum(1 for d in domains if d in entity_sites)
+        print(f"  {category:<7} {len(domains):>7,} email, {entity:>7,} dari situs yang "
+              f"menyebut badan usaha ({entity / max(len(domains), 1):.0%})")
     print(f"Situs dengan lebih dari 20 alamat: {crowded} (lihat kolom alamat_di_situs_ini).")
     print(f"Hasil: {out_file}")
 
