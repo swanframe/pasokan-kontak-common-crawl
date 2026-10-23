@@ -20,6 +20,7 @@ import gzip
 import html
 import http.client
 import json
+import random
 import re
 import sys
 import time
@@ -231,6 +232,11 @@ def harvest(month):
     out_file = RESULTS / f"{month}.csv"
     progress_file = CACHE / f"{month}.progres"
     blocks = load_blocks(crawl)
+    # Urutan abjad menumpuk situs sejenis: blok awal jauh lebih cepat dari rata-
+    # rata, sehingga perkiraan sisa waktu meleset dan hasil yang berhenti di
+    # tengah tidak mewakili arsip. Diacak dengan benih nama arsip, jadi urutannya
+    # sama tiap kali dijalankan dan catatan progres tetap berlaku.
+    random.Random(crawl).shuffle(blocks)
 
     # Melanjutkan: blok yang sudah selesai dilewati, email yang sudah tercatat
     # tidak ditulis dua kali.
