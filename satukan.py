@@ -53,6 +53,17 @@ ADDRESS = re.compile(r"[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,24}")
 ENTITY_NAME = re.compile(r"^(?:PT|CV)\b|\bTbk\b|\bPersero\b", re.I)
 FIELDS = ["prioritas", "email", "nama_usaha", "kbli", "domain_situs", "jenis_domain",
           "jenis", "sebut_badan_usaha", "sumber"]
+# Judul kolom di berkas hasil mengikuti yang dikenali Import Kontak Sales Agent.
+# "nama_usaha" terbaca sebagai nama orang karena memuat kata "nama", sehingga
+# "PT Maju Jaya" muncul di sapaan email.
+HEADERS = {"nama_usaha": "perusahaan", "domain_situs": "situs"}
+
+
+def write_rows(path, rows):
+    with path.open("w", newline="", encoding="utf-8-sig") as f:
+        w = csv.writer(f)
+        w.writerow([HEADERS.get(field, field) for field in FIELDS])
+        w.writerows([row.get(field, "") for field in FIELDS] for row in rows)
 
 
 def mailbox(email):
@@ -192,18 +203,20 @@ def main():
             dropped.append((email, fresh.pop(email)["domain_situs"], result))
     kept.update(fresh)
 
+    for row in kept.values():
+        row["prioritas"] = panen.priority(row)
+    rows = sorted(kept.values(), key=lambda r: (
+        r["prioritas"], r["sebut_badan_usaha"] != "ya",
+        r["domain_situs"] or r["email"].split("@")[1], r["email"]))
+    by_priority = Counter(r["prioritas"] for r in rows)
+    by_source = Counter(r["sumber"].split(" 20")[0] for r in rows)
     out_file = panen.RESULTS / "pasokan.csv"
-    by_priority, by_source = Counter(), Counter()
-    order = lambda r: (panen.priority(r), r["sebut_badan_usaha"] != "ya",
-                       r["domain_situs"] or r["email"].split("@")[1], r["email"])
-    with out_file.open("w", newline="", encoding="utf-8-sig") as f:
-        w = csv.DictWriter(f, FIELDS, extrasaction="ignore")
-        w.writeheader()
-        for row in sorted(kept.values(), key=order):
-            p = panen.priority(row)
-            by_priority[p] += 1
-            by_source[row["sumber"].split(" 20")[0]] += 1
-            w.writerow(dict(row, prioritas=p))
+    write_rows(out_file, rows)
+    # Satu berkas per prioritas: Import Kontak menolak berkas di atas 10 MB,
+    # dan pengiriman memang dimulai dari prioritas 1.
+    for p in sorted(by_priority):
+        write_rows(panen.RESULTS / f"pasokan-prioritas-{p}.csv",
+                   [r for r in rows if r["prioritas"] == p])
     with (panen.RESULTS / "pasokan_dibuang.csv").open("w", newline="", encoding="utf-8-sig") as f:
         w = csv.writer(f)
         w.writerow(["email", "domain_situs", "alasan"])
@@ -224,7 +237,8 @@ def main():
               3: "kantor, situs lain, tanpa badan usaha", 4: "Gmail dan sejenisnya"}
     for p in sorted(labels):
         print(f"  {p} {labels[p]:<40} {by_priority[p]:>7,}")
-    print(f"Hasil: {out_file}\nYang dibuang beserta alasannya: "
+    print(f"Hasil: {out_file}, dan per prioritas di pasokan-prioritas-<1..4>.csv untuk "
+          f"Import Kontak.\nYang dibuang beserta alasannya: "
           f"{panen.RESULTS / 'pasokan_dibuang.csv'}")
 
 

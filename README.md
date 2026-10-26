@@ -167,10 +167,17 @@ Alamat yang sudah ada di Common Crawl tidak ditambahkan dua kali, tetapi nama
 usaha dan KBLI dari Kemenperin ikut ke barisnya.
 
 Hasilnya `hasil/pasokan.csv`, dengan prioritas yang sama seperti `bersih.csv`,
-ditambah kolom `nama_usaha`, `kbli`, dan `sumber`. Di dalam tiap prioritas,
+ditambah kolom `perusahaan`, `kbli`, dan `sumber`. Di dalam tiap prioritas,
 usaha yang mencantumkan badan usaha di atas: di prioritas 4, Gmail milik PT
 dan CV lebih dulu daripada milik perusahaan rumahan (PR). Yang dibuang ada di
 `hasil/pasokan_dibuang.csv`.
+
+Untuk dimasukkan ke Sales Agent, pakai `hasil/pasokan-prioritas-1.csv` sampai
+`-4.csv` di halaman Import Kontak, mulai dari prioritas 1. Satu berkas per
+prioritas karena Import Kontak menolak berkas di atas 10 MB, dan
+`pasokan.csv` melewatinya. Judul kolomnya sengaja `perusahaan` dan `situs`:
+keduanya dikenali Import Kontak sebagai nama dan situs perusahaan, sedangkan
+judul yang memuat kata "nama" terbaca sebagai nama orang.
 
 Tebakan alamat direksi (`indonesian_executive_leads.csv`) tidak ikut disatukan.
 
