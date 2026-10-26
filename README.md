@@ -125,8 +125,9 @@ Hasilnya:
 
 - `hasil/bersih.csv`, siap dipakai, berurutan menurut kolom `prioritas`:
   1. alamat kantor di situs `co.id`, paling bisa dipegang;
-  2. alamat kantor lain, di situs yang menyebut badan usaha;
-  3. alamat kantor lain;
+  2. alamat kantor di situs selain `co.id`, mencantumkan badan usaha (PT, CV,
+     Tbk, Persero);
+  3. alamat kantor di situs selain `co.id`, tanpa badan usaha;
   4. Gmail dan sejenisnya, data pribadi menurut UU PDP.
 - `hasil/dibuang.csv`, yang dibuang beserta alasannya, untuk dicek bila ada
   yang terasa salah buang.

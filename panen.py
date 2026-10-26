@@ -570,8 +570,9 @@ def https_dns_reachable():
 
 
 def priority(row):
-    """1 kantor co.id, 2 kantor lain di situs yang menyebut badan usaha, 3 kantor
-    lain, 4 Gmail dan sejenisnya (data pribadi menurut UU PDP)."""
+    """1 kantor di situs co.id, 2 kantor di situs selain co.id yang mencantumkan
+    badan usaha, 3 kantor di situs selain co.id tanpa badan usaha, 4 Gmail dan
+    sejenisnya (data pribadi menurut UU PDP)."""
     if row["jenis"] == "gratis":
         return 4
     if row["jenis_domain"] == "co.id":
@@ -661,8 +662,8 @@ def clean():
     for reason, n in Counter(d[2] for d in dropped).most_common():
         print(f"  {reason:<38} {n:>6,}")
     print("Layak dipakai, menurut prioritas kirim:")
-    labels = {1: "kantor co.id", 2: "kantor lain, situs menyebut badan usaha",
-              3: "kantor lain", 4: "Gmail dan sejenisnya"}
+    labels = {1: "kantor, situs co.id", 2: "kantor, situs lain, ada badan usaha",
+              3: "kantor, situs lain, tanpa badan usaha", 4: "Gmail dan sejenisnya"}
     for p in sorted(labels):
         print(f"  {p} {labels[p]:<40} {by_priority[p]:>6,}")
     print(f"Hasil: {out_file}\nYang dibuang beserta alasannya: {RESULTS / 'dibuang.csv'}")
