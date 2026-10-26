@@ -569,6 +569,42 @@ def https_dns_reachable():
         return False
 
 
+def mail_servers(domains):
+    """Status server email tiap domain, atau None bila terhenti di tengah jalan."""
+    # Domain yang sudah diperiksa dicatat, jadi bila terhenti, menjalankan lagi
+    # melanjutkan dari domain berikutnya. DNS rusak bisa hanya sementara, jadi
+    # yang itu selalu diperiksa ulang.
+    CACHE.mkdir(exist_ok=True)
+    mx_file = CACHE / "mx.tsv"
+    status = {}
+    if mx_file.exists():
+        with mx_file.open(encoding="utf-8") as f:
+            status = dict(line.rstrip("\n").split("\t") for line in f if "\t" in line)
+        status = {d: s for d, s in status.items() if s != "dns domain rusak"}
+    todo = sorted(domains - status.keys())
+    print(f"Memeriksa server email {len(todo):,} domain "
+          f"({len(domains) - len(todo):,} sudah diperiksa sebelumnya)...", flush=True)
+    check = mail_server
+    if todo and not https_dns_reachable():
+        print("DNS lewat HTTPS terblokir di jaringan ini; memakai DNS biasa.", flush=True)
+        check = mail_server_udp
+    pool = ThreadPoolExecutor(DNS_WORKERS)
+    try:
+        with mx_file.open("a", encoding="utf-8") as f:
+            for i, (domain, result) in enumerate(zip(todo, pool.map(check, todo)), 1):
+                status[domain] = result
+                f.write(f"{domain}\t{result}\n")
+                f.flush()
+                if i % 1000 == 0:
+                    print(f"{time.strftime('[%H:%M]')} {i:,}/{len(todo):,} domain", flush=True)
+    except (OSError, http.client.HTTPException, KeyboardInterrupt) as exc:
+        print(f"Berhenti ({str(exc) or 'Ctrl+C'}). Jalankan perintah yang sama untuk melanjutkan.")
+        return None
+    finally:
+        pool.shutdown(cancel_futures=True)
+    return status
+
+
 def priority(row):
     """1 kantor di situs co.id, 2 kantor di situs selain co.id yang mencantumkan
     badan usaha, 3 kantor di situs selain co.id tanpa badan usaha, 4 Gmail dan
@@ -603,39 +639,9 @@ def clean():
         repaired += email != row["email"]
         kept[email] = dict(row, email=email, jenis=jenis(email))
 
-    # Domain yang sudah diperiksa dicatat, jadi bila terhenti, menjalankan lagi
-    # melanjutkan dari domain berikutnya. DNS rusak bisa hanya sementara, jadi
-    # yang itu selalu diperiksa ulang.
-    CACHE.mkdir(exist_ok=True)
-    mx_file = CACHE / "mx.tsv"
-    status = {}
-    if mx_file.exists():
-        with mx_file.open(encoding="utf-8") as f:
-            status = dict(line.rstrip("\n").split("\t") for line in f if "\t" in line)
-        status = {d: s for d, s in status.items() if s != "dns domain rusak"}
-    domains = {e.split("@")[1] for e in kept} - FREE_MAIL
-    todo = sorted(domains - status.keys())
-    print(f"Memeriksa server email {len(todo):,} domain "
-          f"({len(domains) - len(todo):,} sudah diperiksa sebelumnya)...", flush=True)
-    check = mail_server
-    if todo and not https_dns_reachable():
-        print("DNS lewat HTTPS terblokir di jaringan ini; memakai DNS biasa.", flush=True)
-        check = mail_server_udp
-    pool = ThreadPoolExecutor(DNS_WORKERS)
-    try:
-        with mx_file.open("a", encoding="utf-8") as f:
-            for i, (domain, result) in enumerate(zip(todo, pool.map(check, todo)), 1):
-                status[domain] = result
-                f.write(f"{domain}\t{result}\n")
-                f.flush()
-                if i % 1000 == 0:
-                    print(f"{time.strftime('[%H:%M]')} {i:,}/{len(todo):,} domain", flush=True)
-    except (OSError, http.client.HTTPException, KeyboardInterrupt) as exc:
-        print(f"Berhenti ({str(exc) or 'Ctrl+C'}). Jalankan perintah yang sama untuk melanjutkan.")
+    status = mail_servers({e.split("@")[1] for e in kept} - FREE_MAIL)
+    if status is None:
         return
-    finally:
-        pool.shutdown(cancel_futures=True)
-
     for email in list(kept):
         result = status.get(email.split("@")[1], "ok")
         if result != "ok":

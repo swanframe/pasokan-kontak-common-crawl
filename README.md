@@ -140,12 +140,47 @@ pengirim (misalnya Mailgun) mencatat yang bounce supaya tidak dikirimi lagi.
 Hasil pemeriksaan domain disimpan di `cache/mx.tsv`. Hapus berkas itu bila
 ingin memeriksa ulang dari awal, misalnya setelah beberapa bulan.
 
+## Menyatukan dengan data Kemenperin
+
+Riset SCRUM-10 (repo `id-company-domains`) mengumpulkan email dari direktori
+industri Kemenperin (SIINas) dan dari kunjungan langsung ke situs perusahaan.
+`satukan.py` menyatukannya dengan `hasil/bersih.csv`:
+
+```
+python satukan.py <folder data id-company-domains>
+```
+
+Folder itu harus berisi `indonesian_companies.csv` dan
+`indonesian_company_emails.csv`. Pembersihannya sama dengan `--bersihkan`,
+ditambah tiga aturan khusus Kemenperin:
+
+- **Kotak surat sekali pakai dibuang** (yopmail, mailnesia, dan sejenisnya).
+  Pendaftar SIINas memakainya untuk lolos isian wajib.
+- **Kotak surat yang terdaftar untuk 3 usaha atau lebih dibuang.** Itu milik
+  dinas, pendamping UMKM, atau jasa perizinan yang mendaftarkan mereka, bukan
+  milik usahanya. Gmail mengabaikan titik, jadi `diskopda.g.r.in.si.i.nas@` dan
+  749 varian lainnya dihitung satu kotak surat.
+- **Alamat buatan pendamping dibuang**: domain yang dipakai 10 usaha atau
+  lebih, dan 80% di antaranya perusahaan rumahan (`@bspjimanado.com`).
+
+Alamat yang sudah ada di Common Crawl tidak ditambahkan dua kali, tetapi nama
+usaha dan KBLI dari Kemenperin ikut ke barisnya.
+
+Hasilnya `hasil/pasokan.csv`, dengan prioritas yang sama seperti `bersih.csv`,
+ditambah kolom `nama_usaha`, `kbli`, dan `sumber`. Di dalam tiap prioritas,
+usaha yang mencantumkan badan usaha di atas: di prioritas 4, Gmail milik PT
+dan CV lebih dulu daripada milik perusahaan rumahan (PR). Yang dibuang ada di
+`hasil/pasokan_dibuang.csv`.
+
+Tebakan alamat direksi (`indonesian_executive_leads.csv`) tidak ikut disatukan.
+
 ## Hasil tidak masuk repo
 
 Folder `hasil/` dan `cache/` ditolak `.gitignore`.
 
-- `hasil/` berisi alamat email, sekitar 25% di antaranya Gmail pribadi yang
-  termasuk data pribadi menurut UU PDP. Bagikan hanya lewat Drive privat.
+- `hasil/` berisi alamat email, sebagian Gmail pribadi yang termasuk data
+  pribadi menurut UU PDP (sekitar 25% hasil Common Crawl, sekitar 65% setelah
+  disatukan dengan Kemenperin). Bagikan hanya lewat Drive privat.
 - `cache/` berisi peta indeks arsip (sekitar 105 MB per bulan), catatan
   progres, dan hasil pemeriksaan domain. Semuanya bisa dibuat ulang.
 
