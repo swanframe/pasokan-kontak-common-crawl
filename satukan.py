@@ -50,9 +50,6 @@ SHARED = 3
 # terkena karena usahanya PT.
 FACILITATOR_MIN, FACILITATOR_SHARE = 10, 0.8
 ADDRESS = re.compile(r"[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,24}")
-# Gmail usaha Kemenperin yang namanya diawali PT atau CV dianggap milik
-# perusahaan; selebihnya (perusahaan rumahan, UD, koperasi) perorangan.
-COMPANY_NAME = re.compile(r"^(?:PT|CV)\b", re.I)
 # Asal daftar situs yang dikunjungi, menurut kolom source di
 # indonesian_company_domains.csv. PSE, PANDI, dan IDX bukan sumber email: email
 # baru didapat setelah situs di daftar itu dikunjungi.
@@ -141,7 +138,6 @@ def dzaky_rows(data):
             rows.append({"email": email, "nama_usaha": name,
                          "kbli": owners[0]["kbli"] if owners else "",
                          "domain_situs": "", "sumber": "Kemenperin",
-                         "pemilik": "perusahaan" if COMPANY_NAME.match(name) else "perorangan",
                          "alamat_di_situs_ini": "1"})
         else:
             site = e["domain"]
@@ -206,6 +202,9 @@ def main():
     kept.update(fresh)
 
     for row in kept.values():
+        # Daftar webmail di sini lebih lengkap daripada di panen.py, jadi
+        # berlaku juga untuk baris Common Crawl.
+        row["jenis"] = "gratis" if row["email"].split("@")[1] in PUBLIC_MAIL else "bukan_gratis"
         row["kelompok"] = panen.group(row)
     rows = sorted(kept.values(), key=lambda r: (
         r["kelompok"], r["domain_situs"] or r["email"].split("@")[1], r["email"]))

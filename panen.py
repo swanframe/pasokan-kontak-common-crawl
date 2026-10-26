@@ -605,18 +605,29 @@ def mail_servers(domains):
     return status
 
 
-GROUPS = {1: "alamat .co.id", 2: "alamat di domain perusahaan lain",
-          3: "Gmail dan sejenisnya, milik perusahaan", 4: "Gmail dan sejenisnya, perorangan"}
+GROUPS = {1: "alamat kantor, terbukti perusahaan", 2: "alamat kantor, belum terbukti",
+          3: "Gmail dan sejenisnya, terbukti perusahaan", 4: "Gmail dan sejenisnya, belum terbukti"}
+COMPANY_NAME = re.compile(r"^(?:PT|CV)\b|\bTbk\b|\bPersero\b", re.I)
+# Daftar situs yang hanya memuat badan usaha terdaftar (lihat satukan.py).
+OFFICIAL_LISTS = {"PSE Komdigi", "Kemenperin"}
+
+
+def proven_company(row):
+    """Terbukti perusahaan bila alamat atau situsnya .co.id, yang hanya boleh
+    didaftarkan badan usaha, atau nama PT/CV-nya tercatat di Kemenperin atau
+    PSE Komdigi. Situs .id biasa boleh milik siapa saja, termasuk acara dan
+    komunitas, jadi tidak cukup."""
+    return (row["email"].endswith(".co.id") or row.get("domain_situs", "").endswith(".co.id")
+            or bool(COMPANY_NAME.search(row.get("nama_usaha", "")))
+            or row.get("daftar_situs") in OFFICIAL_LISTS)
 
 
 def group(row):
-    """Kelompok kirim, urut dari yang paling bisa dipegang. Ditentukan dari
-    alamat emailnya sendiri, bukan dari situs tempat ia ditemukan, supaya siapa
-    pun bisa mengeceknya dengan melihat alamatnya. Gmail di situs perusahaan
-    dianggap milik perusahaan; yang perorangan ditandai sumbernya."""
+    """Kelompok kirim dari dua pertanyaan: alamat kantor atau Gmail, dan
+    pemiliknya terbukti perusahaan atau belum."""
     if row["jenis"] == "gratis":
-        return 4 if row.get("pemilik") == "perorangan" else 3
-    return 1 if row["email"].endswith(".co.id") else 2
+        return 3 if proven_company(row) else 4
+    return 1 if proven_company(row) else 2
 
 
 def clean():

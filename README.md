@@ -127,19 +127,21 @@ Hasilnya:
 - `hasil/dibuang.csv`, yang dibuang beserta alasannya, untuk dicek bila ada
   yang terasa salah buang.
 
-Kelompok kirim ditentukan dari **alamat emailnya sendiri**, bukan dari situs
-tempat ia ditemukan, supaya siapa pun bisa mengeceknya dengan melihat
-alamatnya:
+Kelompok kirim ditentukan dari dua pertanyaan:
 
-1. alamat berakhiran `.co.id`, paling bisa dipegang karena `.co.id` hanya
-   boleh didaftarkan badan usaha berbadan hukum;
-2. alamat di domain perusahaan lain (`.com`, `.id`, `.biz.id`, dan lainnya);
-3. Gmail dan sejenisnya, milik perusahaan: dicantumkan di situs perusahaan,
-   atau didaftarkan PT atau CV di Kemenperin;
-4. Gmail dan sejenisnya, perorangan: didaftarkan perusahaan rumahan, UD,
-   koperasi, dan sejenisnya di Kemenperin. Hanya muncul setelah `satukan.py`.
+- **Alamat kantor atau Gmail dan sejenisnya?** Terlihat dari alamatnya.
+- **Pemiliknya terbukti perusahaan?** Terbukti bila alamat atau situsnya
+  `.co.id`, yang hanya boleh didaftarkan badan usaha, atau nama PT/CV-nya
+  tercatat di Kemenperin atau PSE Komdigi. Situs `.id` biasa boleh milik siapa
+  saja, termasuk acara dan komunitas, jadi tidak cukup.
 
-Gmail dan sejenisnya termasuk data pribadi menurut UU PDP, terutama kelompok 4.
+| | Terbukti perusahaan | Belum terbukti |
+|---|---|---|
+| Alamat kantor | 1 | 2 |
+| Gmail dan sejenisnya | 3 | 4 |
+
+Urutan kirim mengikuti nomor kelompok. Gmail dan sejenisnya termasuk data
+pribadi menurut UU PDP.
 
 Yang **tidak** bisa diperiksa gratis: apakah kotak surat orangnya masih ada.
 Domain bisa hidup sementara alamat `budi@` sudah dihapus. Itu baru ketahuan
