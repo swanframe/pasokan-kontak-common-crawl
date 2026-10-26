@@ -442,6 +442,9 @@ def merge():
     print("Sebelum dipakai, bersihkan dulu dengan: python panen.py --bersihkan")
 
 
+ESCAPE_PREFIX = re.compile(r"^(?:(?:u00|x)(?:22|26|27|3c|3e|a0))+")
+
+
 def repair(email):
     """Merapikan alamat yang tertempel sisa teks halaman; None bila tidak ada
     alamat yang bisa diselamatkan.
@@ -453,6 +456,12 @@ def repair(email):
     if not m:
         return None
     local, domain = m.group().split("@")
+    # Sisa kode escape di skrip halaman: ">info@" terbaca "u003einfo@",
+    # "\x3einfo@" terbaca "x3einfo@". Hanya kode tanda kutip, <, >, &, dan spasi
+    # tak terputus, supaya nama yang kebetulan berawalan x atau u tidak terpotong.
+    local = ESCAPE_PREFIX.sub("", local)
+    if not local:
+        return None
     domain = re.sub(r"\.{2,}", ".", domain)
     if domain in GMAIL_TYPO:
         domain = "gmail.com"
