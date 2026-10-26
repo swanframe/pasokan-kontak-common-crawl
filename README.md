@@ -94,8 +94,50 @@ Dua kolom membantu memilah situs perusahaan dari yang bukan:
 
 Kolom `alamat_di_situs_ini` menunjukkan berapa alamat yang ditemukan di situs
 yang sama. Situs dengan puluhan atau ratusan alamat biasanya halaman peserta
-lomba atau daftar pelanggan, bukan alamat perusahaan itu sendiri. Saring sebelum
-dipakai.
+lomba atau daftar pelanggan, bukan alamat perusahaan itu sendiri.
+
+`gabungan.csv` belum siap dikirimi email. Bersihkan dulu.
+
+## Membersihkan
+
+```
+python panen.py --bersihkan
+```
+
+Gratis, tanpa layanan verifikasi berbayar. Sekitar 6 menit untuk 40 ribu
+alamat. Bila terhenti, jalankan perintah yang sama dan ia melanjutkan.
+
+Yang dikerjakan:
+
+- **Merapikan** alamat yang tertempel sisa teks halaman: `%20%20sales@x.co.id`
+  menjadi `sales@x.co.id`, `budi@gmail.comtelepon` menjadi `budi@gmail.com`,
+  `budi@gmail.co` menjadi `budi@gmail.com`.
+- **Membuang** alamat contoh (`contoh@email.id`, `abc@abc.com`), alamat sistem
+  (`no-reply@`, pelacak galat Sentry), alamat pemerintah, kampus, dan sekolah,
+  serta alamat dari situs dengan lebih dari 20 alamat.
+- **Memeriksa server email** tiap domain lewat DNS Google. Domain yang sudah
+  tidak ada atau tidak punya server email dibuang, karena email ke sana pasti
+  bounce. Yang dikirim ke Google hanya nama domain, bukan alamat email. Di
+  jaringan yang memblokir DNS lewat HTTPS, seperti jaringan kantor, skrip
+  otomatis memakai DNS biasa ke 8.8.8.8 dan 1.1.1.1.
+
+Hasilnya:
+
+- `hasil/bersih.csv`, siap dipakai, berurutan menurut kolom `prioritas`:
+  1. alamat kantor di situs `co.id`, paling bisa dipegang;
+  2. alamat kantor lain, di situs yang menyebut badan usaha;
+  3. alamat kantor lain;
+  4. Gmail dan sejenisnya, data pribadi menurut UU PDP.
+- `hasil/dibuang.csv`, yang dibuang beserta alasannya, untuk dicek bila ada
+  yang terasa salah buang.
+
+Yang **tidak** bisa diperiksa gratis: apakah kotak surat orangnya masih ada.
+Domain bisa hidup sementara alamat `budi@` sudah dihapus. Itu baru ketahuan
+saat dikirim, jadi mulailah dari prioritas 1 dalam jumlah kecil dan biarkan
+pengirim (misalnya Mailgun) mencatat yang bounce supaya tidak dikirimi lagi.
+
+Hasil pemeriksaan domain disimpan di `cache/mx.tsv`. Hapus berkas itu bila
+ingin memeriksa ulang dari awal, misalnya setelah beberapa bulan.
 
 ## Hasil tidak masuk repo
 
@@ -103,8 +145,8 @@ Folder `hasil/` dan `cache/` ditolak `.gitignore`.
 
 - `hasil/` berisi alamat email, sekitar 25% di antaranya Gmail pribadi yang
   termasuk data pribadi menurut UU PDP. Bagikan hanya lewat Drive privat.
-- `cache/` berisi peta indeks arsip (sekitar 105 MB per bulan) dan catatan
-  progres. Semuanya bisa dibuat ulang.
+- `cache/` berisi peta indeks arsip (sekitar 105 MB per bulan), catatan
+  progres, dan hasil pemeriksaan domain. Semuanya bisa dibuat ulang.
 
 ## Angka acuan
 
@@ -118,6 +160,7 @@ jam tanpa henti yang mengolah 37% arsip:
 
 ## Batasan
 
-- Email belum dicek masih aktif atau tidak.
+- `--bersihkan` memeriksa domain, bukan kotak surat. Sebagian alamat tetap bisa
+  bounce.
 - Situs `.id` yang bukan perusahaan, misalnya portal berita, ikut terambil.
 - Perusahaan Indonesia yang memakai `.com` belum tercakup.
