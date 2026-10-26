@@ -605,15 +605,18 @@ def mail_servers(domains):
     return status
 
 
-def priority(row):
-    """1 kantor di situs co.id, 2 kantor di situs selain co.id yang mencantumkan
-    badan usaha, 3 kantor di situs selain co.id tanpa badan usaha, 4 Gmail dan
-    sejenisnya (data pribadi menurut UU PDP)."""
+GROUPS = {1: "alamat .co.id", 2: "alamat di domain perusahaan lain",
+          3: "Gmail dan sejenisnya, milik perusahaan", 4: "Gmail dan sejenisnya, perorangan"}
+
+
+def group(row):
+    """Kelompok kirim, urut dari yang paling bisa dipegang. Ditentukan dari
+    alamat emailnya sendiri, bukan dari situs tempat ia ditemukan, supaya siapa
+    pun bisa mengeceknya dengan melihat alamatnya. Gmail di situs perusahaan
+    dianggap milik perusahaan; yang perorangan ditandai sumbernya."""
     if row["jenis"] == "gratis":
-        return 4
-    if row["jenis_domain"] == "co.id":
-        return 1
-    return 2 if row["sebut_badan_usaha"] == "ya" else 3
+        return 4 if row.get("pemilik") == "perorangan" else 3
+    return 1 if row["email"].endswith(".co.id") else 2
 
 
 def clean():
@@ -648,15 +651,15 @@ def clean():
             dropped.append((email, kept.pop(email)["domain_situs"], result))
 
     out_file = RESULTS / "bersih.csv"
-    fields = ["prioritas", "email", "domain_situs", "jenis_domain", "jenis",
+    fields = ["kelompok", "email", "domain_situs", "jenis_domain", "jenis",
               "sebut_badan_usaha", "bulan", "alamat_di_situs_ini"]
-    by_priority = Counter()
+    by_group = Counter()
     with out_file.open("w", newline="", encoding="utf-8-sig") as f:
         w = csv.DictWriter(f, fields)
         w.writeheader()
-        for row in sorted(kept.values(), key=lambda r: (priority(r), r["domain_situs"], r["email"])):
-            by_priority[priority(row)] += 1
-            w.writerow(dict(row, prioritas=priority(row)))
+        for row in sorted(kept.values(), key=lambda r: (group(r), r["domain_situs"], r["email"])):
+            by_group[group(row)] += 1
+            w.writerow(dict(row, kelompok=group(row)))
     with (RESULTS / "dibuang.csv").open("w", newline="", encoding="utf-8-sig") as f:
         w = csv.writer(f)
         w.writerow(["email", "domain_situs", "alasan"])
@@ -667,11 +670,9 @@ def clean():
     print("Dibuang karena:")
     for reason, n in Counter(d[2] for d in dropped).most_common():
         print(f"  {reason:<38} {n:>6,}")
-    print("Layak dipakai, menurut prioritas kirim:")
-    labels = {1: "kantor, situs co.id", 2: "kantor, situs lain, ada badan usaha",
-              3: "kantor, situs lain, tanpa badan usaha", 4: "Gmail dan sejenisnya"}
-    for p in sorted(labels):
-        print(f"  {p} {labels[p]:<40} {by_priority[p]:>6,}")
+    print("Layak dipakai, menurut kelompok kirim:")
+    for g in sorted(by_group):
+        print(f"  {g} {GROUPS[g]:<40} {by_group[g]:>6,}")
     print(f"Hasil: {out_file}\nYang dibuang beserta alasannya: {RESULTS / 'dibuang.csv'}")
 
 

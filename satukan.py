@@ -50,9 +50,16 @@ SHARED = 3
 # terkena karena usahanya PT.
 FACILITATOR_MIN, FACILITATOR_SHARE = 10, 0.8
 ADDRESS = re.compile(r"[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,24}")
-ENTITY_NAME = re.compile(r"^(?:PT|CV)\b|\bTbk\b|\bPersero\b", re.I)
-FIELDS = ["prioritas", "email", "nama_usaha", "kbli", "domain_situs", "jenis_domain",
-          "jenis", "sebut_badan_usaha", "sumber"]
+# Gmail usaha Kemenperin yang namanya diawali PT atau CV dianggap milik
+# perusahaan; selebihnya (perusahaan rumahan, UD, koperasi) perorangan.
+COMPANY_NAME = re.compile(r"^(?:PT|CV)\b", re.I)
+# Asal daftar situs yang dikunjungi, menurut kolom source di
+# indonesian_company_domains.csv. PSE, PANDI, dan IDX bukan sumber email: email
+# baru didapat setelah situs di daftar itu dikunjungi.
+SITE_LISTS = {"zonefile_co_id": "PANDI .co.id", "zonefile_biz_id": "PANDI .biz.id",
+              "pse": "PSE Komdigi", "kemenperin": "Kemenperin", "commoncrawl": "Common Crawl",
+              "zonefile_tranco": "Tranco", "idx": "IDX"}
+FIELDS = ["kelompok", "email", "nama_usaha", "kbli", "domain_situs", "sumber", "daftar_situs"]
 # Judul kolom di berkas hasil mengikuti yang dikenali Import Kontak Sales Agent.
 # "nama_usaha" terbaca sebagai nama orang karena memuat kata "nama", sehingga
 # "PT Maju Jaya" muncul di sapaan email.
@@ -73,11 +80,6 @@ def mailbox(email):
     if domain in ("gmail.com", "googlemail.com"):
         return local.split("+")[0].replace(".", "") + "@gmail.com"
     return email
-
-
-def domain_kind(domain):
-    kind = panen.domain_category(domain)
-    return kind if kind != "id" or domain.endswith(".id") else "lain"
 
 
 def read_csv(path):
@@ -114,6 +116,8 @@ def dzaky_rows(data):
     facilitators = facilitator_domains(companies)
     emails = read_csv(data / "indonesian_company_emails.csv")
     per_site = Counter(r["domain"] for r in emails if r["source"] == "contact_scrape")
+    site_list = {r["domain"]: SITE_LISTS.get(r["source"], "lainnya")
+                 for r in read_csv(data / "indonesian_company_domains.csv")}
     rows, dropped = [], []
     for e in emails:
         # verified_executive adalah tebakan alamat direksi (Metode 4), di luar
@@ -136,16 +140,14 @@ def dzaky_rows(data):
             name = owners[0]["name"] if owners else e["company_name"]
             rows.append({"email": email, "nama_usaha": name,
                          "kbli": owners[0]["kbli"] if owners else "",
-                         "domain_situs": "", "jenis_domain": domain_kind(domain),
-                         "sebut_badan_usaha": "ya" if ENTITY_NAME.search(name) else "tidak",
-                         "sumber": "kemenperin", "alamat_di_situs_ini": "1"})
+                         "domain_situs": "", "sumber": "Kemenperin",
+                         "pemilik": "perusahaan" if COMPANY_NAME.match(name) else "perorangan",
+                         "alamat_di_situs_ini": "1"})
         else:
             site = e["domain"]
-            name = e["company_name"]
-            rows.append({"email": email, "nama_usaha": name, "kbli": "",
-                         "domain_situs": site, "jenis_domain": domain_kind(site),
-                         "sebut_badan_usaha": "ya" if ENTITY_NAME.search(name) else "tidak",
-                         "sumber": "kunjungan situs",
+            rows.append({"email": email, "nama_usaha": e["company_name"], "kbli": "",
+                         "domain_situs": site, "sumber": "Kunjungan situs",
+                         "daftar_situs": site_list.get(site, "lainnya"),
                          "alamat_di_situs_ini": str(per_site[site])})
     return rows, dropped
 
@@ -167,7 +169,7 @@ def main():
     kept, cc = {}, {}
     for row in read_csv(cc_file):
         kept[row["email"]] = cc[mailbox(row["email"])] = dict(
-            row, nama_usaha="", kbli="", sumber=f"common crawl {row['bulan']}")
+            row, nama_usaha="", kbli="", sumber=f"Common Crawl {row['bulan']}")
     from_cc = len(kept)
 
     rows, dropped = dzaky_rows(data)
@@ -204,19 +206,19 @@ def main():
     kept.update(fresh)
 
     for row in kept.values():
-        row["prioritas"] = panen.priority(row)
+        row["kelompok"] = panen.group(row)
     rows = sorted(kept.values(), key=lambda r: (
-        r["prioritas"], r["sebut_badan_usaha"] != "ya",
-        r["domain_situs"] or r["email"].split("@")[1], r["email"]))
-    by_priority = Counter(r["prioritas"] for r in rows)
-    by_source = Counter(r["sumber"].split(" 20")[0] for r in rows)
+        r["kelompok"], r["domain_situs"] or r["email"].split("@")[1], r["email"]))
+    source = lambda r: r["sumber"].split(" 20")[0]
+    by_cell = Counter((source(r), r["kelompok"]) for r in rows)
+    by_list = Counter(r["daftar_situs"] for r in rows if r.get("daftar_situs"))
     out_file = panen.RESULTS / "pasokan.csv"
     write_rows(out_file, rows)
-    # Satu berkas per prioritas: Import Kontak menolak berkas di atas 10 MB,
-    # dan pengiriman memang dimulai dari prioritas 1.
-    for p in sorted(by_priority):
-        write_rows(panen.RESULTS / f"pasokan-prioritas-{p}.csv",
-                   [r for r in rows if r["prioritas"] == p])
+    # Satu berkas per kelompok: pengiriman dimulai dari kelompok 1, dan
+    # pasokan.csv nyaris menyentuh batas Import Kontak 10 MB.
+    for g in panen.GROUPS:
+        write_rows(panen.RESULTS / f"pasokan-kelompok-{g}.csv",
+                   [r for r in rows if r["kelompok"] == g])
     with (panen.RESULTS / "pasokan_dibuang.csv").open("w", newline="", encoding="utf-8-sig") as f:
         w = csv.writer(f)
         w.writerow(["email", "domain_situs", "alasan"])
@@ -229,15 +231,19 @@ def main():
     print("Dibuang karena:")
     for reason, n in Counter(d[2] for d in dropped).most_common():
         print(f"  {reason:<38} {n:>7,}")
-    print("Menurut sumber:")
-    for source, n in by_source.most_common():
-        print(f"  {source:<38} {n:>7,}")
-    print("Menurut prioritas kirim:")
-    labels = {1: "kantor, situs co.id", 2: "kantor, situs lain, ada badan usaha",
-              3: "kantor, situs lain, tanpa badan usaha", 4: "Gmail dan sejenisnya"}
-    for p in sorted(labels):
-        print(f"  {p} {labels[p]:<40} {by_priority[p]:>7,}")
-    print(f"Hasil: {out_file}, dan per prioritas di pasokan-prioritas-<1..4>.csv untuk "
+    print("Kelompok kirim:")
+    for g, label in panen.GROUPS.items():
+        print(f"  {g} {label}")
+    sources = ("Common Crawl", "Kemenperin", "Kunjungan situs")
+    print(f"\n  {'Sumber':<18}" + "".join(f"{g:>9}" for g in panen.GROUPS) + f"{'Total':>9}")
+    for s in sources + ("Total",):
+        cells = [sum(n for (src, grp), n in by_cell.items() if grp == g and s in (src, "Total"))
+                 for g in panen.GROUPS]
+        print(f"  {s:<18}" + "".join(f"{n:>9,}" for n in cells) + f"{sum(cells):>9,}")
+    print("\nKunjungan situs, menurut asal daftar situs yang dikunjungi:")
+    for name, n in by_list.most_common():
+        print(f"  {name:<38} {n:>7,}")
+    print(f"\nHasil: {out_file}, dan per kelompok di pasokan-kelompok-<1..4>.csv untuk "
           f"Import Kontak.\nYang dibuang beserta alasannya: "
           f"{panen.RESULTS / 'pasokan_dibuang.csv'}")
 

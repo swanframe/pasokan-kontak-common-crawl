@@ -123,18 +123,27 @@ Yang dikerjakan:
 
 Hasilnya:
 
-- `hasil/bersih.csv`, siap dipakai, berurutan menurut kolom `prioritas`:
-  1. alamat kantor di situs `co.id`, paling bisa dipegang;
-  2. alamat kantor di situs selain `co.id`, mencantumkan badan usaha (PT, CV,
-     Tbk, Persero);
-  3. alamat kantor di situs selain `co.id`, tanpa badan usaha;
-  4. Gmail dan sejenisnya, data pribadi menurut UU PDP.
+- `hasil/bersih.csv`, siap dipakai, berurutan menurut kolom `kelompok`.
 - `hasil/dibuang.csv`, yang dibuang beserta alasannya, untuk dicek bila ada
   yang terasa salah buang.
 
+Kelompok kirim ditentukan dari **alamat emailnya sendiri**, bukan dari situs
+tempat ia ditemukan, supaya siapa pun bisa mengeceknya dengan melihat
+alamatnya:
+
+1. alamat berakhiran `.co.id`, paling bisa dipegang karena `.co.id` hanya
+   boleh didaftarkan badan usaha berbadan hukum;
+2. alamat di domain perusahaan lain (`.com`, `.id`, `.biz.id`, dan lainnya);
+3. Gmail dan sejenisnya, milik perusahaan: dicantumkan di situs perusahaan,
+   atau didaftarkan PT atau CV di Kemenperin;
+4. Gmail dan sejenisnya, perorangan: didaftarkan perusahaan rumahan, UD,
+   koperasi, dan sejenisnya di Kemenperin. Hanya muncul setelah `satukan.py`.
+
+Gmail dan sejenisnya termasuk data pribadi menurut UU PDP, terutama kelompok 4.
+
 Yang **tidak** bisa diperiksa gratis: apakah kotak surat orangnya masih ada.
 Domain bisa hidup sementara alamat `budi@` sudah dihapus. Itu baru ketahuan
-saat dikirim, jadi mulailah dari prioritas 1 dalam jumlah kecil dan biarkan
+saat dikirim, jadi mulailah dari kelompok 1 dalam jumlah kecil dan biarkan
 pengirim (misalnya Mailgun) mencatat yang bounce supaya tidak dikirimi lagi.
 
 Hasil pemeriksaan domain disimpan di `cache/mx.tsv`. Hapus berkas itu bila
@@ -166,18 +175,28 @@ ditambah tiga aturan khusus Kemenperin:
 Alamat yang sudah ada di Common Crawl tidak ditambahkan dua kali, tetapi nama
 usaha dan KBLI dari Kemenperin ikut ke barisnya.
 
-Hasilnya `hasil/pasokan.csv`, dengan prioritas yang sama seperti `bersih.csv`,
-ditambah kolom `perusahaan`, `kbli`, dan `sumber`. Di dalam tiap prioritas,
-usaha yang mencantumkan badan usaha di atas: di prioritas 4, Gmail milik PT
-dan CV lebih dulu daripada milik perusahaan rumahan (PR). Yang dibuang ada di
-`hasil/pasokan_dibuang.csv`.
+Hasilnya `hasil/pasokan.csv`, dengan kelompok kirim yang sama seperti
+`bersih.csv`. Kolomnya:
 
-Untuk dimasukkan ke Sales Agent, pakai `hasil/pasokan-prioritas-1.csv` sampai
-`-4.csv` di halaman Import Kontak, mulai dari prioritas 1. Satu berkas per
-prioritas karena Import Kontak menolak berkas di atas 10 MB, dan
-`pasokan.csv` melewatinya. Judul kolomnya sengaja `perusahaan` dan `situs`:
-keduanya dikenali Import Kontak sebagai nama dan situs perusahaan, sedangkan
-judul yang memuat kata "nama" terbaca sebagai nama orang.
+- `kelompok`: 1 sampai 4, lihat [Membersihkan](#membersihkan).
+- `perusahaan` dan `kbli`: dari Kemenperin, termasuk untuk alamat Common Crawl
+  yang juga terdaftar di sana.
+- `situs`: situs tempat alamat itu ditemukan; kosong untuk Kemenperin.
+- `sumber`: tempat alamatnya ditemukan, yaitu `Common Crawl <bulan>`,
+  `Kemenperin`, atau `Kunjungan situs`.
+- `daftar_situs`: untuk kunjungan situs, asal daftar situs yang dikunjungi
+  (`PANDI .co.id`, `PSE Komdigi`, dan seterusnya). PANDI, PSE, dan IDX
+  adalah daftar perusahaan atau domain, bukan sumber email: emailnya baru
+  didapat setelah situsnya dikunjungi.
+
+Yang dibuang ada di `hasil/pasokan_dibuang.csv`.
+
+Untuk dimasukkan ke Sales Agent, pakai `hasil/pasokan-kelompok-1.csv` sampai
+`-4.csv` di halaman Import Kontak, mulai dari kelompok 1. Tiap berkas jauh di
+bawah batas Import Kontak 10 MB, sedangkan `pasokan.csv` nyaris menyentuhnya.
+Judul kolomnya sengaja `perusahaan` dan `situs`: keduanya dikenali Import
+Kontak sebagai nama dan situs perusahaan, sedangkan judul yang memuat kata
+"nama" terbaca sebagai nama orang.
 
 Tebakan alamat direksi (`indonesian_executive_leads.csv`) tidak ikut disatukan.
 
