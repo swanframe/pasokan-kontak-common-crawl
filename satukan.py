@@ -61,13 +61,17 @@ FIELDS = ["kelompok", "email", "nama_usaha", "kbli", "domain_situs", "sumber", "
 # "nama_usaha" terbaca sebagai nama orang karena memuat kata "nama", sehingga
 # "PT Maju Jaya" muncul di sapaan email.
 HEADERS = {"nama_usaha": "perusahaan", "domain_situs": "situs"}
+# Berkas untuk Import Kontak hanya memuat kolom yang dipakainya. Import menebak
+# kolom tanpa judul yang dikenalnya dari isinya, dan "PANDI .co.id" di
+# daftar_situs tertebak sebagai nama orang, lalu muncul di sapaan email.
+IMPORT_FIELDS = ["email", "nama_usaha", "domain_situs"]
 
 
-def write_rows(path, rows):
+def write_rows(path, rows, fields=FIELDS):
     with path.open("w", newline="", encoding="utf-8-sig") as f:
         w = csv.writer(f)
-        w.writerow([HEADERS.get(field, field) for field in FIELDS])
-        w.writerows([row.get(field, "") for field in FIELDS] for row in rows)
+        w.writerow([HEADERS.get(field, field) for field in fields])
+        w.writerows([row.get(field, "") for field in fields] for row in rows)
 
 
 def mailbox(email):
@@ -217,7 +221,7 @@ def main():
     # pasokan.csv nyaris menyentuh batas Import Kontak 10 MB.
     for g in panen.GROUPS:
         write_rows(panen.RESULTS / f"pasokan-kelompok-{g}.csv",
-                   [r for r in rows if r["kelompok"] == g])
+                   [r for r in rows if r["kelompok"] == g], IMPORT_FIELDS)
     with (panen.RESULTS / "pasokan_dibuang.csv").open("w", newline="", encoding="utf-8-sig") as f:
         w = csv.writer(f)
         w.writerow(["email", "domain_situs", "alasan"])

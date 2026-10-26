@@ -460,6 +460,9 @@ def repair(email):
     # "\x3einfo@" terbaca "x3einfo@". Hanya kode tanda kutip, <, >, &, dan spasi
     # tak terputus, supaya nama yang kebetulan berawalan x atau u tidak terpotong.
     local = ESCAPE_PREFIX.sub("", local)
+    # Tanda hubung dan titik di depan adalah sisa teks halaman ("--info@",
+    # "-@gmail.com"), bukan bagian alamat.
+    local = local.lstrip("-.")
     if not local:
         return None
     domain = re.sub(r"\.{2,}", ".", domain)

@@ -196,9 +196,12 @@ Yang dibuang ada di `hasil/pasokan_dibuang.csv`.
 Untuk dimasukkan ke Sales Agent, pakai `hasil/pasokan-kelompok-1.csv` sampai
 `-4.csv` di halaman Import Kontak, mulai dari kelompok 1. Tiap berkas jauh di
 bawah batas Import Kontak 10 MB, sedangkan `pasokan.csv` nyaris menyentuhnya.
-Judul kolomnya sengaja `perusahaan` dan `situs`: keduanya dikenali Import
-Kontak sebagai nama dan situs perusahaan, sedangkan judul yang memuat kata
-"nama" terbaca sebagai nama orang.
+
+Berkas per kelompok hanya berisi `email`, `perusahaan`, dan `situs`, karena
+hanya itu yang dipakai Import Kontak. Kolom lain bisa salah ditebak: Import
+menebak kolom yang judulnya tidak dikenal dari isinya, dan "PANDI .co.id" di
+`daftar_situs` tertebak sebagai nama orang, lalu muncul di sapaan email.
+Judulnya pun sengaja `perusahaan` dan `situs`, bukan yang memuat kata "nama".
 
 Tebakan alamat direksi (`indonesian_executive_leads.csv`) tidak ikut disatukan.
 
